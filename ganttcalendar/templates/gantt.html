@@ -1,0 +1,232 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      py:with="px_ti=25;px_hd=46;px_dw=12;px_ch=10;maxtic=len(tickets);">
+  <xi:include href="layout.html" />
+  <xi:include href="macros.html" />
+  <head>
+    <script type="text/javascript" src="${chrome.htdocs_location}js/folding.js"></script>
+    <script type="text/javascript">
+      jQuery(document).ready(function($) {
+        $("fieldset legend.foldable").enableFolding(false);
+        /* Hide the filters for saved queries. */
+        $("#options").toggleClass("collapsed");
+      });
+    </script>
+
+    <style type="text/css">
+      form fieldset.collapsed { 
+        border-width: 0px;
+        margin-bottom: 0px;
+        padding: 0px .5em;
+      }
+      fieldset legend.foldable :link,
+      fieldset legend.foldable :visited { 
+        background: url(${chrome.htdocs_location}expanded.png) 0 50% no-repeat;
+        border: none;
+        color: #666;
+        font-size: 110%;
+        padding-left: 16px;
+      }
+      fieldset legend.foldable :link:hover, fieldset legend.foldable :visited:hover {
+        background-color: transparent;
+      }
+      
+      fieldset.collapsed legend.foldable :link, fieldset.collapsed legend.foldable :visited { 
+        background-image: url(${chrome.htdocs_location}collapsed.png);  
+      }
+      fieldset.collapsed table, fieldset.collapsed div { display: none }
+      table.list     {width:100%;border-collapse: collapse;margin-bottom: 6px;}
+      table.list td  {padding:2px;}
+      .border_line   {background-color: gray;}
+      .hdr           {position: absolute;background-color: #eee;}
+      .hdr_title     {display:block;position: absolute; width:100%;text-align:center;font-size:10px;}
+      .bdy           {position: absolute;background-color: #fff;text-align: left;top:${px_hd}px;height:${maxtic*px_ti}px;}
+      .bdy_elem      {position: absolute;font-size: 9px;left:1px;height:${px_ti-2}px;}
+
+      .tip           {position: static;}
+      .tip span.popup{position: absolute;visibility: hidden;background-color: #ffe;color: black;border: 1px solid #555;left: 20px;top: 30px;width: 400px; padding: 3px;}
+      .tip:hover span.popup
+                     {visibility: visible; z-index: 100;}
+
+      .tic_done      {position: absolute; overflow: hidden; background:lightgreen;}
+      .tic_late      {position: absolute; overflow: hidden; background:pink;}
+      .tic_todo      {position: absolute; overflow: hidden; background:lightgrey;}
+      .tic_done_bl   {position: absolute; overflow: hidden; background:green;}
+      .tic_late_bl   {position: absolute; overflow: hidden; background:red;}
+      .tic_todo_bl   {position: absolute; overflow: hidden; background:gray;}
+
+      .baseline      {position: absolute; overflow: hidden; border-left: 1px dashed red;}
+      .milestone  {position: absolute; overflow: hidden; background-color: red;}
+    </style>
+  </head>
+  <body py:with="weekdays = ['月', '火', '水' ,'木', '金', '土', '日']">
+    <form>
+      <fieldset id="options">
+        <legend class="foldable">設定</legend>
+        <table class="list">
+          <tr>
+            <td>
+              基準日<input type="text" id="field-baseday" name="baseday" value="${format_date(parse_date(baseday.isoformat()))}" length="10"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              ソートするフィールド
+              <select name="sorted_field">
+                <option value="component" selected="${sorted_field=='component' or None}">component</option>
+                <option value="milestone" selected="${sorted_field=='milestone' or None}">milestone</option>
+              </select><br/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              絞込みをします
+              マイルストーン = 
+              <select name="selected_milestone">
+              <py:for each="i in milestones.keys()">
+                <option selected="${selected_milestone==i or None}" value="$i">$i</option>
+              </py:for>
+              </select>
+              AND 
+              コンポーネント =
+              <select name="selected_component">
+              <py:for each="i in components">
+                  <option selected="${selected_component==i.name or None}" value="${i.name}">${i.name}</option>
+              </py:for>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <input type="checkbox" name="show_my_ticket" checked="$show_my_ticket" />自分のチケットのみ表示
+              <input type="checkbox" name="show_closed_ticket" checked="$show_closed_ticket" />closeしたチケットを表示<br/>
+  
+            </td>
+            <td align="right" valign="bottom">
+              <input type="submit" value="更新" />
+            </td>
+          </tr>
+        </table>
+      </fieldset>
+      <table class="list">
+        <tr>
+          <td>
+            <input type="button" value="&lt;&lt;${prev.month}月" onclick="form.year.value = ${prev.year}; form.month.value = ${prev.month}; form.submit();"/>
+          </td>
+          <td align="center">
+            <select name="year">
+              <option py:for="y in range(current.year-3,current.year+4)"
+                     value="$y"
+                     selected="${y==current.year or None}">$y</option>
+            </select>
+            年
+            <select name="month">
+              <option py:for="m in [1,2,3,4,5,6,7,8,9,10,11,12]"
+                     value="$m" selected="${m==current.month or None}">$m</option>
+            </select>
+            月
+            <input type="submit" value="更新" />
+          </td>
+          <td align="right">
+            <input type="button" value="${next.month}月&gt;&gt;" onclick="form.year.value = ${next.year}; form.month.value = ${next.month}; form.submit();"/>
+          </td>
+        </tr>
+      </table>
+    </form>
+    <!-- gantt -->
+    <div style="position:relative;left:1px;top:1px;width:100%;height:${maxtic*px_ti+px_hd+1+40}px;">
+      <!-- right side -->
+      <div style="overflow:auto;margin-left:308px;margin-right:4px;position:relative;left:0px;top:1px;height:${maxtic*px_ti+px_hd+1+30}px;">
+        <div class="border_line" style="left:0px;top:1px;width:${px_dw*days_term+1}px;height:${maxtic*px_ti+px_hd+1}px;">
+          <!-- head and sun,sta,holiday -->
+          <div class="bdy" style="position:relative;left:1px;top:${px_hd}px;width:${px_dw*days_term-1}px;height:${maxtic*px_ti}px;"/>
+<py:for each="cnt in reversed(range(days_term))" py:with="cur=first_date+timedelta(cnt);wk=cur.weekday()">
+          <div py:if="cur.day == 1" py:with="days_thismonth=calendar.monthrange(cur.year,cur.month)[1];" class="hdr hdr_title" style="left:${px_dw*cnt+1}px;top:${(px_hd-4)/3*0+1}px;width: ${days_thismonth*px_dw-1}px;height:${(px_hd-4)/3}px;">${cur.year}/${cur.month}</div>
+          <div py:if="wk==6 and(cur-first_date).days+7&lt;days_term" class="hdr hdr_title" style="left:${px_dw*cnt+1}px;top:${(px_hd-4)/3*1+2}px;width: ${px_dw*7-1}px;height:${(px_hd-4)/3}px;">${cur.month}/${cur.day}</div>
+          <div py:if="wk==6 and(cur-first_date).days+7&gt;days_term" class="hdr hdr_title" style="left:${px_dw*cnt+1}px;top:${(px_hd-4)/3*1+2}px;width: ${px_dw*(days_term-(cur-first_date).days)-1}px;height:${(px_hd-4)/3}px;"/>
+          <div class="hdr hdr_title" style="left:${px_dw*cnt+1}px;top:${(px_hd-4)/3*2+3}px;width: ${px_dw-1}px;height:${(px_hd-4)/3}px;">${weekdays[wk]}</div>
+  <py:with vars="holiday_desc = holidays.get(format_date(parse_date(cur.isoformat())));">
+    <py:if test="cur.weekday()&gt;4or holiday_desc">
+          <div class="border_line" style="position:absolute;top:${px_hd}px; left: ${px_dw*cnt}px; width: ${px_dw+1}px; height: ${maxtic*px_ti+1}px;">
+            <div class="hdr" py:attrs="{'title':holiday_desc}" style="top:0px; left:1px; width: ${px_dw-1}px; height: ${maxtic*px_ti}px;"/>
+          </div>
+    </py:if>
+  </py:with>
+</py:for>
+          <div py:if="first_date.weekday()!=6" class="hdr" style="left:1px;top:${(px_hd-4)/3*1+2}px;width: ${px_dw*(6-first_date.weekday())-1}px;height:${(px_hd-4)/3}px;"/>
+          <!-- chart -->
+<py:def function="print_chart(kind)">
+  <py:with vars="s=tickets[cnt].get('all_start');e=tickets[cnt].get(kind +'_end');">
+    <py:if test="e!=None and e-s!= 0">
+          <div class="${'tic_'+kind+'_bl'}" style="left:${int(s*px_dw+1)}px;top:${px_ti*cnt+px_hd+((px_ti-px_ch)/2)}px;width: ${int((e-s)*px_dw)}px;height:${px_ch}px;"/>
+          <div class="${'tic_'+kind}" style="left:${int(s*px_dw+2)}px;top:${px_ti*cnt+px_hd+((px_ti-px_ch)/2+1)}px;width: ${int((e-s)*px_dw)-2}px;height:${px_ch-2}px;"/>
+    </py:if>
+  </py:with>
+</py:def>
+<py:for each="cnt in reversed(range(maxtic))">
+          ${print_chart('todo')}
+          ${print_chart('late')}
+          ${print_chart('done')}
+  <py:if test="selected_milestone != '' and selected_milestone != None">
+    <py:if test="tickets[cnt].get('milestone')!= None and tickets[cnt].get('milestone') in milestones" py:with="d= milestones[tickets[cnt]['milestone']].get('due')">
+      <py:if test="d!=None and 0 &lt;= (d-first_date).days+1 &lt; days_term" py:with="d=(d-first_date).days+1">
+          <div class="milestone" style="left: ${d*px_dw}px; top: ${cnt*px_ti+px_hd}px;  width: 2px; height: ${px_ti}px;"></div>
+      </py:if>
+    </py:if>
+  </py:if>
+</py:for>
+<py:with vars="base = (baseday-first_date).days+1">
+          <!-- baseline -->
+          <div py:if="base+1 &lt; days_term" class="baseline" style="left:${base*px_dw}px;top:${px_hd}px; height:${maxtic*px_ti}px; width: 0px;"/>
+</py:with>
+        </div>
+      </div>
+      <!-- left side -->
+      <div style="position:absolute;background-color:gray;left:1px;top:1px;width:304px;height:${maxtic*px_ti+px_hd+1}px;">
+        <div class="hdr" style="left:1px;top:1px;width: 89px;height:${px_hd-2}px;"><span class="hdr_title" style="top:${(px_hd-2-16)/2}px;">${_(sorted_field)}</span></div>
+        <div class="hdr" style="left:91px;top:1px;width:104px;height:${px_hd-2}px;"><span class="hdr_title" style="top:${(px_hd-2-16)/2}px;">チケット</span></div>
+        <div class="hdr" style="left:196px;top:1px;width:107px;height:${px_hd-2}px;"><span class="hdr_title" style="top:${(px_hd-2-16)/2}px;">担当者</span></div>
+
+<py:def function="print_field(px_x,px_w,ticket_col,dupchk=False)">
+        <div class="bdy" style="left:${px_x}px;width:${px_w}px;">
+  <py:for each="cnt in range(maxtic)" py:with="t=tickets[cnt]">
+    <py:choose>
+      <py:when test="ticket_col=='ticket'" py:with="cnt=maxtic-cnt-1;t=tickets[cnt];">
+          <div class="bdy_elem" style="top: ${cnt*px_ti}px;width: ${px_w-2}px;">
+            <a class="tip" href="${req.href.ticket()}/${t['id']}">#${t['id']}:${t['summary'][0:14]}
+              <span class="popup">
+                <pre><span class="type">${t['type']}</span>#${t['id']}: ${t['summary']}</pre>
+                <strong>担当者</strong>: ${format_author(t['owner'])}<br/>
+                <strong>開始日</strong>: ${format_date(parse_date(t['due_assign'].isoformat()))}<br/>
+                <strong>終了日</strong>: ${format_date(parse_date(t['due_close'].isoformat()))}<br/>
+                <strong>達成率</strong>: ${t['complete']}%<br/>
+                <strong>詳細</strong>: <pre>${t['description']}</pre>
+              </span>
+            </a>
+          </div>
+      </py:when>
+      <py:otherwise>
+        <py:choose>
+          <py:when test="dupchk">
+          <div py:if="not cnt or t[ticket_col]!=tickets[cnt-1][ticket_col]" class="bdy_elem" style="top:${cnt*px_ti}px;width: ${px_w-2}px;">${t[ticket_col]}</div>
+          </py:when>
+          <py:otherwise>
+          <div class="bdy_elem" style="top: ${cnt*px_ti}px;width: ${px_w-2}px;">${ticket_col in ('owner','reporter') and format_author(t[ticket_col]) or t[ticket_col]}</div>
+          </py:otherwise>
+        </py:choose>
+      </py:otherwise>
+    </py:choose>
+  </py:for>
+        </div>
+</py:def>
+
+        ${print_field( 196,107,'owner')}
+        ${print_field(  91,104,'ticket')}
+        ${print_field(   1, 89,sorted_field,dupchk=True)}
+
+      </div>
+    </div>
+    <!-- gantt -->
+  </body>
+</html>

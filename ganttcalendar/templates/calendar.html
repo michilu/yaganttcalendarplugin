@@ -1,0 +1,211 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="layout.html" />
+  <xi:include href="macros.html" />
+  <head>
+    <script type="text/javascript" src="${chrome.htdocs_location}js/folding.js"></script>
+    <script type="text/javascript">
+      jQuery(document).ready(function($) {
+        $("fieldset legend.foldable").enableFolding(false);
+        /* Hide the filters for saved queries. */
+        $("#options").toggleClass("collapsed");
+      });
+    </script>
+
+    <style type="text/css">
+      form fieldset.collapsed { 
+        border-width: 0px;
+        margin-bottom: 0px;
+        padding: 0px .5em;
+      }
+      fieldset legend.foldable :link,
+      fieldset legend.foldable :visited { 
+        background: url(${chrome.htdocs_location}expanded.png) 0 50% no-repeat;
+        border: none;
+        color: #666;
+        font-size: 110%;
+        padding-left: 16px;
+      }
+      fieldset legend.foldable :link:hover, fieldset legend.foldable :visited:hover {
+        background-color: transparent;
+      }
+      
+      fieldset.collapsed legend.foldable :link, fieldset.collapsed legend.foldable :visited { 
+        background-image: url(${chrome.htdocs_location}collapsed.png);  
+      }
+      fieldset.collapsed table, fieldset.collapsed div { display: none }
+
+      table.list {
+        width:100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
+      }
+
+      table.with-cells td {
+        border: 1px solid #d7d7d7;
+      }
+
+      table.list td {
+        padding:2px;
+      }
+
+      table.list thead th {
+        text-align: center;
+        background: #eee;
+        border: 1px solid #d7d7d7;
+        color: #777;
+      }
+
+      table.list tbody th {
+        font-weight: bold;
+        background: #eed;
+        border: 1px solid #d7d7d7;
+        color: #777;
+      }
+
+
+      .ticket {
+        font-size: 9px;
+      }
+
+
+      .textright {
+        text-align:right;
+      }
+
+      .active {
+         background-color:#fff;
+      }
+      .holiday {
+        background-color: #f6f7f8;
+        color: black;
+      }
+      .today {
+        background-color: #ffe0e0;
+      }
+
+      .tip {
+        position: static;
+      }
+
+      .tip span.popup{
+        position: absolute;
+        visibility: hidden;
+        color: black;
+        border:1px solid #555;
+        background-color: #ffe;
+        font-size: 8pt;
+        width: 400px;
+        padding: 3px;
+      }
+
+      .tip:hover span.popup{
+        visibility: visible;
+        z-index: 100;
+      }
+
+    </style>
+  </head>
+  <body>
+    <form>
+      <fieldset id="options">
+        <legend class="foldable">設定</legend>
+        <table class="list">
+          <tr>
+            <td>
+            </td>
+            <td>
+              マイルストーン
+              <select name="selected_milestone">
+                <option py:for="m in milestones" value="${m.name}" selected="${selected_milestone==m.name or None}">${m.name}</option>
+              </select>
+              <input type="checkbox" name="show_my_ticket" checked="$show_my_ticket" />自分のチケットのみ表示
+            </td>
+            <td align="right">
+              <input type="submit" value="更新" />
+            </td>
+          </tr>
+        </table>
+      </fieldset>
+      <table class="list">
+        <tr>
+          <td>
+            <input type="button" value="&lt;&lt;${prev.month}月" onclick="form.year.value = ${prev.year}; form.month.value = ${prev.month}; form.submit();"/>
+          </td>
+          <td align="center">
+            <select name="year">
+              <option py:for="y in range(current.year-3,current.year+4)"
+                     value="$y"
+                     selected="${y==current.year or None}">$y</option>
+            </select>
+            年
+            <select name="month">
+              <option py:for="m in [1,2,3,4,5,6,7,8,9,10,11,12]"
+                     value="$m" selected="${m==current.month or None}">$m</option>
+            </select>
+            月
+            <input type="submit" value="更新" />
+          </td>
+          <td align="right">
+            <input type="button" value="${next.month}月&gt;&gt;" onclick="form.year.value = ${next.year}; form.month.value = ${next.month}; form.submit();"/>
+          </td>
+        </tr>
+      </table>
+    </form>
+
+    <table class="list with-cells">
+      <thead>
+        <tr>
+          <th></th>
+          <th style="width: 14%;">日曜日</th>
+          <th style="width: 14%;">月曜日</th>
+          <th style="width: 14%;">火曜日</th>
+          <th style="width: 14%;">水曜日</th>
+          <th style="width: 14%;">木曜日</th>
+          <th style="width: 14%;">金曜日</th>
+          <th style="width: 14%;">土曜日</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr py:for="w in range(((last - first).days + 1)/7)" style="height: 60px;">
+          <th></th>
+          <py:for each="d in range(7)" py:with="mday= first+ timedelta(w*7+d);holiday_desc= days[mday].get('holiday_desc');">
+          <td class="${days[mday]['kind']}" style="width: 14%;" valign="top">
+            <div class="textright"><span py:attrs="{'title':holiday_desc}" py:strip="holiday_desc==None" >${mday.day}</span></div>
+            <py:for each="c in range(len(days[mday]['ticket']))">
+            <div class="ticket" py:with="t=tickets[days[mday]['ticket'][c]['num']]">
+              <a class="tip" href="${req.href.ticket()}/${t['id']}">
+                <img src="${href.chrome('tc/img/arrow_'+days[mday]['ticket'][c]['img']+'.png')}" alt="+" />
+                <span class="type">${t['type']}</span><s py:strip="t['status']!='closed'">#${t['id']}:${t['summary']}</s>
+                <span class="popup">
+                  <pre><span class="type">${t['type']}</span>#${t['id']}: ${t['summary']}</pre>
+                  <strong>担当者</strong>: ${format_author(t['owner'])}<br />
+                  <strong>開始日</strong>: <span py:if="t['due_assign'] != None">${format_date(parse_date(t['due_assign'].isoformat()))}</span><br />
+                  <strong>終了日</strong>: <span py:if="t['due_close'] != None">${format_date(parse_date(t['due_close'].isoformat()))}</span><br />
+                  <strong>詳細</strong>: <pre>${t['description']}</pre>
+                </span>
+              </a>
+            </div>
+            </py:for>
+
+            <py:for each="c in range(len(days[mday]['milestone']))">
+              <div class="ticket" py:with="m=milestones[days[mday]['milestone'][c]]">
+                  <a class="tip" href="${req.href.milestone()}/${m['name']}">
+                    <s py:strip="m['completed']!=True"><img src="${href.chrome('tc/img/package.png')}" />${m['name']}</s>
+                    <span class="popup">
+                      ${m['name']}<br />
+                      <strong>期限</strong>: ${format_date(parse_date(m['due'].isoformat()))}<br />
+                      <strong>詳細</strong>: ${m['description']}<br />
+                    </span>
+                  </a>
+              </div>
+            </py:for>
+          </td>
+          </py:for>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
