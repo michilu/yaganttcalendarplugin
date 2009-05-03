@@ -56,6 +56,8 @@
       .tic_late_bl   {position: absolute; overflow: hidden; background:red;}
       .tic_todo_bl   {position: absolute; overflow: hidden; background:gray;}
 
+      .line_of_tic   {position: absolute; overflow: hidden; border-top: 1px dashed gray;}
+
       .baseline      {position: absolute; overflow: hidden; border-left: 1px dashed red;}
       .milestone  {position: absolute; overflow: hidden; background-color: red;}
     </style>
@@ -76,6 +78,7 @@
               <select name="sorted_field">
                 <option value="component" selected="${sorted_field=='component' or None}">component</option>
                 <option value="milestone" selected="${sorted_field=='milestone' or None}">milestone</option>
+                <option value="owner" selected="${sorted_field=='owner' or None}">owner</option>
               </select><br/>
             </td>
           </tr>
@@ -158,6 +161,7 @@
           <!-- chart -->
 <py:def function="print_chart(kind)">
   <py:with vars="s=tickets[cnt].get('all_start');e=tickets[cnt].get(kind +'_end');">
+          <div class="line_of_tic" style="left: 1px; top: ${(cnt+1)*px_ti+px_hd}px; width: ${px_dw*days_term-1}px; height: 1px;"/>
     <py:if test="e!=None and e-s!= 0">
           <div class="${'tic_'+kind+'_bl'}" style="left:${int(s*px_dw+1)}px;top:${px_ti*cnt+px_hd+((px_ti-px_ch)/2)}px;width: ${int((e-s)*px_dw)}px;height:${px_ch}px;"/>
           <div class="${'tic_'+kind}" style="left:${int(s*px_dw+2)}px;top:${px_ti*cnt+px_hd+((px_ti-px_ch)/2+1)}px;width: ${int((e-s)*px_dw)-2}px;height:${px_ch-2}px;"/>
